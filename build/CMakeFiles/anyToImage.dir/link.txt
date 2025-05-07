@@ -1,0 +1,1 @@
+/usr/lib/llvm/19/bin/clang++  -march=native -g CMakeFiles/anyToImage.dir/src/main.cpp.o -o anyToImage
