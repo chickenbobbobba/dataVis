@@ -27,16 +27,16 @@ CMAKE_BUILD_TYPE:STRING=Debug
 CMAKE_COLOR_MAKEFILE:BOOL=ON
 
 //CXX compiler
-CMAKE_CXX_COMPILER:STRING=/usr/lib/llvm/19/bin/clang++
+CMAKE_CXX_COMPILER:STRING=/usr/lib/llvm/20/bin/clang++
 
 //LLVM archiver
-CMAKE_CXX_COMPILER_AR:FILEPATH=/usr/lib/llvm/19/bin/llvm-ar
+CMAKE_CXX_COMPILER_AR:FILEPATH=/usr/lib/llvm/20/bin/llvm-ar
 
 //`clang-scan-deps` dependency scanner
-CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS:FILEPATH=/usr/lib/llvm/19/bin/clang-scan-deps
+CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS:FILEPATH=/usr/lib/llvm/20/bin/clang-scan-deps
 
 //Generate index for LLVM archive
-CMAKE_CXX_COMPILER_RANLIB:FILEPATH=/usr/lib/llvm/19/bin/llvm-ranlib
+CMAKE_CXX_COMPILER_RANLIB:FILEPATH=/usr/lib/llvm/20/bin/llvm-ranlib
 
 //Flags used by the CXX compiler during all build types.
 CMAKE_CXX_FLAGS:STRING=
@@ -80,7 +80,7 @@ CMAKE_C_FLAGS_RELEASE:STRING=-O3 -DNDEBUG
 CMAKE_C_FLAGS_RELWITHDEBINFO:STRING=-O2 -g -DNDEBUG
 
 //Path to a program.
-CMAKE_DLLTOOL:FILEPATH=/usr/lib/llvm/19/bin/dlltool
+CMAKE_DLLTOOL:FILEPATH=/usr/lib/llvm/20/bin/dlltool
 
 //Flags used by the linker during all build types.
 CMAKE_EXE_LINKER_FLAGS:STRING=
@@ -255,7 +255,7 @@ CMAKE_CACHE_MAJOR_VERSION:INTERNAL=3
 //Minor version of cmake used to create the current loaded cache
 CMAKE_CACHE_MINOR_VERSION:INTERNAL=31
 //Patch version of cmake used to create the current loaded cache
-CMAKE_CACHE_PATCH_VERSION:INTERNAL=5
+CMAKE_CACHE_PATCH_VERSION:INTERNAL=7
 //ADVANCED property for variable: CMAKE_COLOR_MAKEFILE
 CMAKE_COLOR_MAKEFILE-ADVANCED:INTERNAL=1
 //Path to CMake executable.
@@ -391,8 +391,4 @@ CMAKE_TAPI-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
-//linker supports push/pop state
-_CMAKE_C_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
-//linker supports push/pop state
-_CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
 

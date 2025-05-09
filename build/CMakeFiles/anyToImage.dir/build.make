@@ -76,15 +76,15 @@ CMakeFiles/anyToImage.dir/src/main.cpp.o: CMakeFiles/anyToImage.dir/flags.make
 CMakeFiles/anyToImage.dir/src/main.cpp.o: /home/samb/vscode/dataVis/src/main.cpp
 CMakeFiles/anyToImage.dir/src/main.cpp.o: CMakeFiles/anyToImage.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/samb/vscode/dataVis/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/anyToImage.dir/src/main.cpp.o"
-	/usr/lib/llvm/19/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/anyToImage.dir/src/main.cpp.o -MF CMakeFiles/anyToImage.dir/src/main.cpp.o.d -o CMakeFiles/anyToImage.dir/src/main.cpp.o -c /home/samb/vscode/dataVis/src/main.cpp
+	/usr/lib/llvm/20/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/anyToImage.dir/src/main.cpp.o -MF CMakeFiles/anyToImage.dir/src/main.cpp.o.d -o CMakeFiles/anyToImage.dir/src/main.cpp.o -c /home/samb/vscode/dataVis/src/main.cpp
 
 CMakeFiles/anyToImage.dir/src/main.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/anyToImage.dir/src/main.cpp.i"
-	/usr/lib/llvm/19/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/samb/vscode/dataVis/src/main.cpp > CMakeFiles/anyToImage.dir/src/main.cpp.i
+	/usr/lib/llvm/20/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/samb/vscode/dataVis/src/main.cpp > CMakeFiles/anyToImage.dir/src/main.cpp.i
 
 CMakeFiles/anyToImage.dir/src/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/anyToImage.dir/src/main.cpp.s"
-	/usr/lib/llvm/19/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/samb/vscode/dataVis/src/main.cpp -o CMakeFiles/anyToImage.dir/src/main.cpp.s
+	/usr/lib/llvm/20/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/samb/vscode/dataVis/src/main.cpp -o CMakeFiles/anyToImage.dir/src/main.cpp.s
 
 # Object files for target anyToImage
 anyToImage_OBJECTS = \

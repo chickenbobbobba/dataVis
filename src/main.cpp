@@ -4,6 +4,7 @@
 #include <cmath>
 #include <filesystem>
 #include <vector>
+#include <threadpool.h>
 
 std::vector<char> readBytes(std::string inputFile) {
     std::ifstream input(inputFile, std::ios::binary|std::ios::ate);
@@ -62,32 +63,56 @@ Vec2 hilbert(long i, long order) {
 }
 
 std::vector<pixel> mapLinearToHilbert(const std::vector<pixel>& pixMap, long width, long height) {
+    ThreadPool pool(std::thread::hardware_concurrency());
+    
     long order = std::ceil(std::log2(width)); // Determine the order based on the larger dimension
     long size = pixMap.size();
+    int taskGroupSize = width;
     std::vector<pixel> hilbMap(size);
 
-    for (long i = 0; i < size; i++) {
-        Vec2 v = hilbert(i, order);
-        long hilbertIndex = v.y * width + v.x; // Calculate the linear index from the 2D coordinates
-        hilbMap[hilbertIndex] = pixMap[i];
-        if (i % 100000 == 0)
-        std::cout << "\r" << (float)i / (size)* 100 << "%                                  ";
-    }   std::cout << std::endl;
+    std::vector<std::future<void>> taskIndex;
+
+    for (long i = 0; i < size; i += taskGroupSize) {
+        taskIndex.emplace_back(pool.addTask([i, taskGroupSize, order, width, &pixMap, &hilbMap](){
+            for (int j = i; j < taskGroupSize + i; j++) {
+                Vec2 v = hilbert(j, order);
+                long hilbertIndex = v.y * width + v.x; // Calculate the linear index from the 2D coordinates
+                hilbMap[hilbertIndex] = pixMap[j];
+            }
+        }));
+    }   
+    for (long i = 0; i < taskIndex.size(); i++) {
+        taskIndex[i].get();
+        std::cout << "\r" << (float)i / (taskIndex.size())* 100 << "%                                  ";
+    }
+    std::cout << std::endl;
     return hilbMap;
 }
 
-int main(int, char**) {
+int main(int argc, char* argv[]) {
     std::cout << std::filesystem::current_path() << std::endl;
-    std::string inputFile = "../resources/input";
-    std::string outputFile = "../resources/output.ppm";
-    std::ofstream output(outputFile, std::ios::binary);
+
+    std::string inputFile;
+    std::string outputFile;
+    if (argc > 1) {
+        inputFile = argv[1];
+        std::cout << "input file: " << inputFile << "\n";
+    } else {
+        std::cout << "please provide input file.\n";
+        return 1;
+    }
+    if (argc > 2) {
+        outputFile = argv[2];
+        std::cout << "output file: " << outputFile << "\n";
+    } else {
+        std::cout << "please provide output file. (extension must be .ppm)\n";
+        return 1;
+    }
+    std::ofstream output(outputFile.c_str(), std::ios::binary);
     
     std::cout << "reading file...\n";
-    
-    std::vector<char> data = readBytes(inputFile);
-    
-    std::cout << "file successfully read. parsing file...\n";
-    std::cout << data.size() << std::endl;
+    std::vector<char> data = readBytes(inputFile.c_str());
+    std::cout << "file successfully read. parsing " << data.size() << " bytes of data" << std::endl;
 
     long  pixCount = data.size()/3;
     //round side lengths up to the nearest power of 2 
