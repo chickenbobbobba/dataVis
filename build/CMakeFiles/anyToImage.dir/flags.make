@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/samb/vscode/dataVis/include
 
-CXX_FLAGS =  -march=native -g -std=c++23
+CXX_FLAGS =  -march=native -O3 -std=c++23
 

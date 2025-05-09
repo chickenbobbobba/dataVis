@@ -6,17 +6,18 @@
 #include <vector>
 #include <threadpool.h>
 
-std::vector<char> readBytes(std::string inputFile) {
-    std::ifstream input(inputFile, std::ios::binary|std::ios::ate);
-    std::ifstream::pos_type pos = input.tellg();
-    if (pos == 0) {
-        return std::vector<char>{};
+void readBytes(std::string inputFile, std::vector<char>& data) {
+    std::ifstream input(inputFile, std::ios::binary);
+    input.seekg(0, std::ios::end);
+    std::ifstream::pos_type size = input.tellg();
+    if (size == 0) {
+        return;
     }
-    std::vector<char> result(pos);
+    std::vector<char> result(size);
     input.seekg(0, std::ios::beg);
-    input.read(&result[0], pos);
-
-    return result;
+    input.read(&result[0], size);
+    
+    data.insert(data.end(), result.begin(), result.end());
 }
 
 struct pixel {
@@ -32,6 +33,7 @@ struct Vec2 {
 };
 
 Vec2 hilbert(long i, long order) {
+    
     const std::vector<Vec2> points = {
         {0, 0},
         {0, 1},
@@ -44,7 +46,7 @@ Vec2 hilbert(long i, long order) {
     for (long j = 1; j < order; j++) {
         i = i >> 2; // Equivalent to i / 4
         long index = i & 3;
-        long len = std::pow(2, j);
+        long len = 1 << j;
         if (index == 0) {
             std::swap(v.x, v.y);
         } else if (index == 1) {
@@ -60,33 +62,52 @@ Vec2 hilbert(long i, long order) {
         }
     }
     return v;
+    
+
 }
 
-std::vector<pixel> mapLinearToHilbert(const std::vector<pixel>& pixMap, long width, long height) {
+void mapLinearToHilbert(std::vector<pixel>& pixMap, std::vector<pixel>& hilbMap, long width, long height) {
+    
     ThreadPool pool(std::thread::hardware_concurrency());
     
     long order = std::ceil(std::log2(width)); // Determine the order based on the larger dimension
     long size = pixMap.size();
     int taskGroupSize = width;
-    std::vector<pixel> hilbMap(size);
+    //std::vector<pixel> hilbMap(size);
 
     std::vector<std::future<void>> taskIndex;
 
     for (long i = 0; i < size; i += taskGroupSize) {
-        taskIndex.emplace_back(pool.addTask([i, taskGroupSize, order, width, &pixMap, &hilbMap](){
+        //taskIndex.emplace_back(pool.addTask([i, taskGroupSize, order, width, &pixMap, &hilbMap](){
             for (int j = i; j < taskGroupSize + i; j++) {
                 Vec2 v = hilbert(j, order);
                 long hilbertIndex = v.y * width + v.x; // Calculate the linear index from the 2D coordinates
                 hilbMap[hilbertIndex] = pixMap[j];
             }
-        }));
+        //}));
     }   
     for (long i = 0; i < taskIndex.size(); i++) {
         taskIndex[i].get();
-        std::cout << "\r" << (float)i / (taskIndex.size())* 100 << "%                                  ";
+        //if (i % 10000 == 0)
+        //std::cout << "\r" << (float)i / (taskIndex.size())* 100 << "%                                  ";
     }
     std::cout << std::endl;
-    return hilbMap;
+    
+}
+
+void loadData(std::string input, std::vector<char>& data, int depth = 0) {
+    depth++;
+    if (std::filesystem::is_directory(input)) {
+        for(const auto& entry: std::filesystem::recursive_directory_iterator(input)) {
+            loadData(entry.path(), data, depth);
+        }
+    } else {
+        if (std::filesystem::file_size(input) != 0) {
+            readBytes(input, data);
+            std::cout << "# depth - dir | " << depth << " - " << input << "\n";
+        }
+    }
+    depth--;
 }
 
 int main(int argc, char* argv[]) {
@@ -111,7 +132,8 @@ int main(int argc, char* argv[]) {
     std::ofstream output(outputFile.c_str(), std::ios::binary);
     
     std::cout << "reading file...\n";
-    std::vector<char> data = readBytes(inputFile.c_str());
+    std::vector<char> data;
+    loadData(inputFile, data);
     std::cout << "file successfully read. parsing " << data.size() << " bytes of data" << std::endl;
 
     long  pixCount = data.size()/3;
@@ -121,24 +143,22 @@ int main(int argc, char* argv[]) {
     std::cout << pixCount << " pixels, " << width << "x" << height << std::endl;
     
     //append data to make the PPM file valid
-    std::cout << "padding data...\n";
     std::cout << "allocating " << width * height * 3 / 1024/1024 << "MiB" << std::endl;
-    data.reserve(width * height * 3);
-    while (data.size() < width * height * 3) {
-        data.push_back(0);
-        if (data.size() % 10000000 == 0)
-            std::cout << "\r" << (float)data.size() / (width * height * 3)* 100 << "%                                  ";
-    }
+    data.resize(width * height * 3);
+
     std::cout << std::endl;
-    
-    std::cout << "mapping to curve...\n";
-    std::vector<pixel> pixMap;
+
+    std::cout << "padding data...\n";
+    std::vector<pixel> pixMap(data.size());
     for (long i = 0; i < data.size(); i += 3) {
         pixMap.push_back({data[i], data[i+1], data[i+2]});
-    }
-
+        //if (i % 1000000 == 0)
+        //    std::cout << "\r" << (float)i / (width * height * 3)* 100 << "%                                  ";
+    }   std::cout << std::endl;
+    
+    std::cout << "mapping to curve...\n";
     std::vector<pixel> hilbMap(width * height);
-    hilbMap = mapLinearToHilbert(pixMap, width, height);
+    mapLinearToHilbert(pixMap, hilbMap, width, height);
     //hilbMap = pixMap;
     std::cout << hilbMap.size() << std::endl;
 

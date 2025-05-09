@@ -1,7 +1,7 @@
 [
 {
   "directory": "/home/samb/vscode/dataVis/build",
-  "command": "/usr/lib/llvm/20/bin/clang++  -I/home/samb/vscode/dataVis/include  -march=native -g -std=c++23 -o CMakeFiles/anyToImage.dir/src/main.cpp.o -c /home/samb/vscode/dataVis/src/main.cpp",
+  "command": "/usr/lib/llvm/20/bin/clang++  -I/home/samb/vscode/dataVis/include  -march=native -O3 -std=c++23 -o CMakeFiles/anyToImage.dir/src/main.cpp.o -c /home/samb/vscode/dataVis/src/main.cpp",
   "file": "/home/samb/vscode/dataVis/src/main.cpp",
   "output": "CMakeFiles/anyToImage.dir/src/main.cpp.o"
 }
