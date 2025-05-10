@@ -1,3 +1,0 @@
-/home/samb/vscode/dataVis/build/CMakeFiles/anyToImage.dir
-/home/samb/vscode/dataVis/build/CMakeFiles/edit_cache.dir
-/home/samb/vscode/dataVis/build/CMakeFiles/rebuild_cache.dir

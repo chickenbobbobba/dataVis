@@ -1,1 +1,0 @@
-/usr/lib/llvm/20/bin/clang++  -march=native -ubsan -fsanitize=address -O3 CMakeFiles/anyToImage.dir/src/main.cpp.o -o anyToImage
