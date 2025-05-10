@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
         puts("please provide output file. (extension must be .ppm)\n");
         return 1;
     }
-    int outputFile = open(argv[2], O_WRONLY | O_CREAT, 0644);
+    long outputFile = open(argv[2], O_WRONLY | O_CREAT, 0644);
 
     //set up on demand buffered reader
     fseek(inputFile, 0, SEEK_END);
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
     long inputLen = bytes_read;
 
     //compute image size, including end byte mark
-    long pixel_count = (inputLen / 3) + 1;
+    long pixel_count = (inputLen / 3);
     long sqrtPixels = std::sqrt(pixel_count);
     long sidePow = (long)(std::ceil(std::log2(sqrtPixels)));
     long side = 1 << sidePow;
@@ -130,11 +130,17 @@ int main(int argc, char* argv[]) {
     fread(data.data(), 1, inputLen, inputFile);
     
     //fun part :)
-    long max = 0;
-    for (size_t i = 0; i < inputLen; ++i) {
-        long mappedIndex = mapPixelHilbert(i, sidePow);
-        grid[mappedIndex] = data[i];
+    ThreadPool pool(std::thread::hardware_concurrency());
+    std::vector<std::future<void>> tasks;
+    for (long i = 0; i < inputLen/side; ++i) {
+        tasks.emplace_back(pool.addTask([i, side, sidePow, &grid, &data](){
+            for (long j = i * side; j < (i+1) * side; j++) {
+                long mappedIndex = mapPixelHilbert(j, sidePow);
+                grid[mappedIndex] = data[j];
+            }
+        }));
     }
+    for (long i = 0; i < tasks.size(); i++) {tasks[i].get();};
 
     fclose(inputFile);
 

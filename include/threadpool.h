@@ -56,7 +56,6 @@ public:
     }
 
     void shutdown() {
-        std::cout << "shutting down threadpool..." << std::endl;
         {
             std::lock_guard<std::mutex> lock(mutex);
             shutdownRequested = true;
