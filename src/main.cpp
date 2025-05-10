@@ -1,3 +1,4 @@
+#include <csignal>
 #include <cstdio>
 #include <iostream>
 #include <fstream>
@@ -7,6 +8,10 @@
 #include <vector>
 #include <threadpool.h>
 #include <map>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 void readBytes(std::string inputFile, std::vector<char>& data) {
     std::ifstream input(inputFile, std::ios::binary);
@@ -80,7 +85,7 @@ long mapHilbert(long sidePow, long index) {
     return x + (y << sidePow);
 }
 
-long /*__attribute__ ((noinline)) */mapPixelHilbert(long byteIndex, long sidePow) {
+long __attribute__ ((noinline)) mapPixelHilbert(long byteIndex, long sidePow) {
     long pixelIndex = byteIndex / 3;
     long channel = byteIndex % 3;
     long mappedPixel = mapHilbert(sidePow, pixelIndex);
@@ -90,56 +95,54 @@ long /*__attribute__ ((noinline)) */mapPixelHilbert(long byteIndex, long sidePow
 int main(int argc, char* argv[]) {
     std::cout << std::filesystem::current_path() << std::endl;
 
-    std::string inputFile;
-    std::string outputFile;
     if (argc > 1) {
-        inputFile = argv[1];
-        std::cout << "input file: " << inputFile << "\n";
+        printf("input file: %s\n", argv[1]);
     } else {
-        std::cout << "please provide input file.\n";
+        puts("please provide input file.\n");
         return 1;
     }
+    FILE* inputFile = fopen(argv[1], "r");
     if (argc > 2) {
-        outputFile = argv[2];
-        std::cout << "output file: " << outputFile << "\n";
+        printf("output file: %s\n", argv[2]);
     } else {
-        std::cout << "please provide output file. (extension must be .ppm)\n";
+        puts("please provide output file. (extension must be .ppm)\n");
         return 1;
     }
-    std::ofstream output(outputFile.c_str(), std::ios::binary);
-    std::vector<char> data;
+    int outputFile = open(argv[2], O_WRONLY | O_CREAT, 0644);
 
     //set up on demand buffered reader
-    std::FILE* file = std::fopen(inputFile.c_str(), "r");
-    fseek(file, 0, SEEK_END);
-    size_t inputLen = ftell(file);
-    fseek(file, 0, SEEK_SET);
+    fseek(inputFile, 0, SEEK_END);
+    long bytes_read = ftell(inputFile);
+    rewind(inputFile);
+    printf("parsing %ld bytes of data\n", bytes_read);
+    long inputLen = bytes_read;
 
     //compute image size, including end byte mark
     long pixel_count = (inputLen / 3) + 1;
     long sqrtPixels = std::sqrt(pixel_count);
     long sidePow = (long)(std::ceil(std::log2(sqrtPixels)));
     long side = 1 << sidePow;
-    long area = side * side;
+    long area = side * side * 3;
 
     //innit output vector
-    std::vector<char> grid(3 * area);
+    auto grid = (char*)mmap(NULL, area, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    std::vector<char> data(area);
+    fread(data.data(), 1, inputLen, inputFile);
     
     //fun part :)
+    long max = 0;
     for (size_t i = 0; i < inputLen; ++i) {
         long mappedIndex = mapPixelHilbert(i, sidePow);
-        char a;
-        fread(&a, 1, 1, file);
-        grid[mappedIndex] = a; 
+        grid[mappedIndex] = data[i];
     }
 
-    fclose(file);
+    fclose(inputFile);
 
     //write to PPM
     std::cout << "writing to file...\n";
-    output << "P6\n" << side << " " << side << "\n255\n";
-
-    for (auto i : grid) output << i;
+    dprintf(outputFile, "P6\n%ld %ld\n255\n", side, side);
+    write(outputFile, grid, side*side*3);
+    close(outputFile);
 
     std::cout << "done!\n";
 }
