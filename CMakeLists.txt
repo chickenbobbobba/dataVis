@@ -14,7 +14,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 file(GLOB_RECURSE APP_SOURCES "src/*")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -ubsan -fsanitize=address")
 
 add_executable(anyToImage ${APP_SOURCES})
 target_include_directories(anyToImage PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
