@@ -1,4 +1,3 @@
-#include <csignal>
 #include <cstdio>
 #include <iostream>
 #include <fstream>
@@ -84,42 +83,44 @@ long mapHilbert(long sidePow, long index) {
 }
 
 long __attribute__ ((noinline)) mapPixelHilbert(long byteIndex, long sidePow) {
-    long pixelIndex = byteIndex / 3;
+    long pixelIndex = byteIndex;
     long channel = byteIndex % 3;
     long mappedPixel = mapHilbert(sidePow, pixelIndex);
-    return mappedPixel * 3 + channel;
+    return mappedPixel + channel;
 }
+
+struct pixel {
+    char r;
+    char g;
+    char b;
+};
 
 void encodeToFile(FILE* inputFile, long outputFile) {
     
     //set up on demand buffered reader
     fseek(inputFile, 0, SEEK_END);
-    long bytes_read = ftell(inputFile);
+    long inputLen = ftell(inputFile);
     rewind(inputFile);
-    printf("parsing %ld bytes of data\n", bytes_read);
-    long inputLen = bytes_read;
+    printf("parsing %ld bytes of data\n", inputLen);
 
-    //compute image size, including end byte mark
-    long pixel_count = (inputLen / 3);
-    long sqrtPixels = std::sqrt(pixel_count);
+    //compute image size
+    long pixelCount = (inputLen / sizeof(pixel));
+    long sqrtPixels = std::sqrt(pixelCount);
     long sidePow = (long)(std::ceil(std::log2(sqrtPixels)));
     long side = 1 << sidePow;
-    long area = side * side * 3;
+    long area = side * side * sizeof(pixel);
     std::cout << "data stored: " << area << "\npixels: " << side * side << "\ndimensions: " << side << "x" << side << "\n";
 
     //innit output vector
-    auto grid = (char*)mmap(NULL, area, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    std::vector<char> data(area);
+    auto grid = (pixel*)mmap(NULL, area, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    auto data = (pixel*)mmap(NULL, area, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     
-    size_t read = 0;
-    while (read < area) {
-        read += fread(data.data(), 1, inputLen, inputFile);
-    }
-    
+    fread(data, 1, inputLen, inputFile);
+
     //fun part :)
     ThreadPool pool(std::thread::hardware_concurrency());
     std::vector<std::future<void>> tasks;
-    for (long i = 0; i < inputLen/side; ++i) {
+    for (long i = 0; i < pixelCount/side; ++i) {
         tasks.emplace_back(pool.addTask([i, side, sidePow, &grid, &data](){
             for (long j = i * side; j < (i+1) * side; j++) {
                 long mappedIndex = mapPixelHilbert(j, sidePow);
@@ -136,7 +137,7 @@ void encodeToFile(FILE* inputFile, long outputFile) {
     dprintf(outputFile, "P6\n%ld %ld\n255\n", side, side);
     size_t written = 0;
     while (written < area) {
-        written += write(outputFile, grid + written, side*side*3 - written);
+        written += write(outputFile, grid + written/sizeof(pixel), area - written);
     }
     close(outputFile);
 }
