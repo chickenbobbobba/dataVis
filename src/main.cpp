@@ -35,8 +35,6 @@ class fileGroup {
     void addFile();
 
     private:
-    long fileRelativeIndex = 0;
-
     std::map<std::string, std::vector<char>> dataMap;
 };
 
@@ -92,24 +90,8 @@ long __attribute__ ((noinline)) mapPixelHilbert(long byteIndex, long sidePow) {
     return mappedPixel * 3 + channel;
 }
 
-int main(int argc, char* argv[]) {
-    std::cout << std::filesystem::current_path() << std::endl;
-
-    if (argc > 1) {
-        printf("input file: %s\n", argv[1]);
-    } else {
-        puts("please provide input file.\n");
-        return 1;
-    }
-    FILE* inputFile = fopen(argv[1], "r");
-    if (argc > 2) {
-        printf("output file: %s\n", argv[2]);
-    } else {
-        puts("please provide output file. (extension must be .ppm)\n");
-        return 1;
-    }
-    long outputFile = open(argv[2], O_WRONLY | O_CREAT, 0644);
-
+void encodeToFile(FILE* inputFile, long outputFile) {
+    
     //set up on demand buffered reader
     fseek(inputFile, 0, SEEK_END);
     long bytes_read = ftell(inputFile);
@@ -123,11 +105,16 @@ int main(int argc, char* argv[]) {
     long sidePow = (long)(std::ceil(std::log2(sqrtPixels)));
     long side = 1 << sidePow;
     long area = side * side * 3;
+    std::cout << "data stored: " << area << "\npixels: " << side * side << "\ndimensions: " << side << "x" << side << "\n";
 
     //innit output vector
     auto grid = (char*)mmap(NULL, area, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     std::vector<char> data(area);
-    fread(data.data(), 1, inputLen, inputFile);
+    
+    size_t read = 0;
+    while (read < area) {
+        read += fread(data.data(), 1, inputLen, inputFile);
+    }
     
     //fun part :)
     ThreadPool pool(std::thread::hardware_concurrency());
@@ -147,8 +134,32 @@ int main(int argc, char* argv[]) {
     //write to PPM
     std::cout << "writing to file...\n";
     dprintf(outputFile, "P6\n%ld %ld\n255\n", side, side);
-    write(outputFile, grid, side*side*3);
+    size_t written = 0;
+    while (written < area) {
+        written += write(outputFile, grid + written, side*side*3 - written);
+    }
     close(outputFile);
+}
+
+int main(int argc, char* argv[]) {
+    std::cout << std::filesystem::current_path() << std::endl;
+
+    if (argc > 1) {
+        printf("input file: %s\n", argv[1]);
+    } else {
+        puts("please provide input file.\n");
+        return 1;
+    }
+    FILE* inputFile = fopen(argv[1], "r");
+    if (argc > 2) {
+        printf("output file: %s\n", argv[2]);
+    } else {
+        puts("please provide output file. (extension must be .ppm)\n");
+        return 1;
+    }
+    long outputFile = open(argv[2], O_WRONLY | O_CREAT, 0644);
+
+    encodeToFile(inputFile, outputFile);
 
     std::cout << "done!\n";
 }
