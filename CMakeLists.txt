@@ -9,13 +9,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MAKE_PROGRAM anyToImage)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-# find_package(glfw3 3.3 REQUIRED)
-# find_package(OpenGL REQUIRED)
+#find_package(tar REQUIRED)
 
 file(GLOB_RECURSE APP_SOURCES "src/*")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -fsanitize=address")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
 
 add_executable(anyToImage ${APP_SOURCES})
 target_include_directories(anyToImage PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
-target_link_libraries(anyToImage)
+#target_link_libraries(anyToImage tar)

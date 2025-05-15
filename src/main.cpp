@@ -1,6 +1,9 @@
+#include <cstddef>
 #include <cstdio>
+#include <exception>
 #include <iostream>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <cmath>
 #include <filesystem>
@@ -11,6 +14,14 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+struct pixel {
+    char r;
+    char g;
+    char b;
+};
+
+void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten);
 
 void readBytes(std::string inputFile, std::vector<char>& data) {
     std::ifstream input(inputFile, std::ios::binary);
@@ -36,21 +47,6 @@ class fileGroup {
     private:
     std::map<std::string, std::vector<char>> dataMap;
 };
-
-void loadData(std::string input, std::vector<char>& data, long depth = 0) {
-    depth++;
-    if (std::filesystem::is_directory(input)) {
-        for(const auto& entry: std::filesystem::recursive_directory_iterator(input)) {
-            loadData(entry.path(), data, depth);
-        }
-    } else {
-        if (std::filesystem::file_size(input) != 0) {
-            readBytes(input, data);
-            std::cout << "# depth - dir | " << depth << " - " << input << "\n";
-        }
-    }
-    depth--;
-}
 
 long mapHilbert(long sidePow, long index) {
     long x = 0;
@@ -82,55 +78,51 @@ long mapHilbert(long sidePow, long index) {
     return x + (y << sidePow);
 }
 
-long __attribute__ ((noinline)) mapPixelHilbert(long byteIndex, long sidePow) {
+long mapPixelHilbert(long byteIndex, long sidePow) {
     long pixelIndex = byteIndex;
     long channel = byteIndex % 3;
     long mappedPixel = mapHilbert(sidePow, pixelIndex);
     return mappedPixel + channel;
 }
 
-struct pixel {
-    char r;
-    char g;
-    char b;
-};
-
-void encodeToFile(FILE* inputFile, long outputFile) {
+void encodeToFile(std::string inputDir, long outputFile) {
+    std::vector<pixel> data;
+    long bytesWritten = 0;
+    loadData(inputDir, data, bytesWritten);
     
-    //set up on demand buffered reader
-    fseek(inputFile, 0, SEEK_END);
-    long inputLen = ftell(inputFile);
-    rewind(inputFile);
-    printf("parsing %ld bytes of data\n", inputLen);
+    long inputLen = data.size();
+    std::cout << "parsing " << inputLen * 3 << " bytes of data" << std::endl;
 
     //compute image size
-    long pixelCount = (inputLen / sizeof(pixel));
+    long pixelCount = (inputLen);
     long sqrtPixels = std::sqrt(pixelCount);
     long sidePow = (long)(std::ceil(std::log2(sqrtPixels)));
     long side = 1 << sidePow;
     long area = side * side * sizeof(pixel);
-    std::cout << "data stored: " << area << "\npixels: " << side * side << "\ndimensions: " << side << "x" << side << "\n";
+    //data.resize(area);
+    std::cout << "data stored: " << area/1024/1024 << " MiB\npixels: " << side * side << "\ndimensions: " << side << "x" << side << std::endl;
 
     //innit output vector
+    std::cout << "allocating output vector of size " << area/1024/1024 << " MiB" << std::endl;
     auto grid = (pixel*)mmap(NULL, area, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    auto data = (pixel*)mmap(NULL, area, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     
-    fread(data, 1, inputLen, inputFile);
-
     //fun part :)
+    std::cout << "mapping..." << std::endl;
     ThreadPool pool(std::thread::hardware_concurrency());
     std::vector<std::future<void>> tasks;
     for (long i = 0; i < pixelCount/side; ++i) {
-        tasks.emplace_back(pool.addTask([i, side, sidePow, &grid, &data](){
+        tasks.emplace_back(pool.addTask([i, side, sidePow, area, &grid, &data](){
             for (long j = i * side; j < (i+1) * side; j++) {
                 long mappedIndex = mapPixelHilbert(j, sidePow);
-                grid[mappedIndex] = data[j];
+                if (mappedIndex < area/3) {
+                    grid[mappedIndex] = data[j];
+                } else {
+                    std::cout << "index " << mappedIndex << " out of bounds for area " << area/3 << "\n";
+                }
             }
         }));
     }
     for (long i = 0; i < tasks.size(); i++) {tasks[i].get();};
-
-    fclose(inputFile);
 
     //write to PPM
     std::cout << "writing to file...\n";
@@ -142,9 +134,56 @@ void encodeToFile(FILE* inputFile, long outputFile) {
     close(outputFile);
 }
 
+
+void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten) {
+    if (std::filesystem::is_directory(input)) {
+        std::vector<std::filesystem::directory_entry> dirs;
+        for(const auto& entry: std::filesystem::directory_iterator(input)) {
+            dirs.push_back(entry);
+        }
+        std::sort(dirs.begin(), dirs.end(),
+    [](const std::filesystem::directory_entry& a, const std::filesystem::directory_entry& b) {
+
+            if (a.is_directory() && !b.is_directory()) return true;
+            if (!a.is_directory() && b.is_directory()) return false;
+            if (a.is_directory() && b.is_directory()) return false;
+
+            size_t c = 0;
+            size_t d = 0;
+
+            try {c = std::filesystem::file_size(a.path());} catch (std::exception){};
+            try {d = std::filesystem::file_size(b.path());} catch (std::exception){};
+
+            return c < d;
+        });
+
+        for (auto i : dirs) {
+            try {
+                loadData(i.path(), data, bytesWritten);
+            } catch (std::exception){
+                std::cout << "could not read file\n";
+            }
+        }
+    } else {
+        std::ifstream inputFile(input, std::ios::binary);
+        size_t fileSize = std::filesystem::file_size(input);
+
+        if (!inputFile) {
+            std::cout << "failed to open file!\n";
+        } else if (fileSize != 0) {
+            data.resize((fileSize + bytesWritten + sizeof(pixel) - 1)/sizeof(pixel) + 1); // ceil division
+            std::cout << "# bytes written - dir - size | " << bytesWritten << " - " << input << " - " << fileSize << std::endl;
+            inputFile.read((char*)data.data() + bytesWritten, fileSize);
+            bytesWritten += fileSize;
+        } else {
+            std::cout << "empty file!\n";
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
     std::cout << std::filesystem::current_path() << std::endl;
-
+    //temp way to pass files in
     if (argc > 1) {
         printf("input file: %s\n", argv[1]);
     } else {
@@ -152,6 +191,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     FILE* inputFile = fopen(argv[1], "r");
+    std::string inputDir = argv[1];
     if (argc > 2) {
         printf("output file: %s\n", argv[2]);
     } else {
@@ -160,7 +200,7 @@ int main(int argc, char* argv[]) {
     }
     long outputFile = open(argv[2], O_WRONLY | O_CREAT, 0644);
 
-    encodeToFile(inputFile, outputFile);
+    encodeToFile(inputDir, outputFile);
 
     std::cout << "done!\n";
 }

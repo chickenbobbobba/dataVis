@@ -116,15 +116,10 @@ private:
                     return;
                 }
                 
-                //std::cout << timeAvg << "\n";
                 if (timeAvg > 0) taskCount = timebuffer / timeAvg;
-                //std::cout << taskCount << "\n";
                 if (taskCount > maxTaskBufferSize) taskCount = maxTaskBufferSize;
-                //std::cout << taskCount << "\n";
                 if (taskCount < 1) taskCount = 1;
-                //std::cout << taskCount << "\n";
                 if (taskCount > tasks.size()) taskCount = tasks.size();
-                //std::cout << taskCount << "\n";
 
                 localTaskQueue.resize(taskCount);
 
