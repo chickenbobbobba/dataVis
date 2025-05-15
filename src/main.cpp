@@ -3,6 +3,7 @@
 #include <exception>
 #include <iostream>
 #include <fstream>
+#include <ostream>
 #include <string>
 #include <cmath>
 #include <filesystem>
@@ -141,15 +142,14 @@ void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten) {
         size_t fileSize = std::filesystem::file_size(input);
 
         if (!inputFile) {
-            std::cout << "failed to open file!\n";
+            // file failed to open
         } else if (fileSize != 0) {
             data.resize((fileSize + bytesWritten + sizeof(pixel) - 1)/sizeof(pixel) + 1); // ceil division
-            std::cout << "# bytes written - dir - size | " << bytesWritten << " - " << input << " - " << fileSize << std::endl;
+            std::cout << "\33[2K\r# bytes written - dir - size | " << bytesWritten << " - " << input << " - " << fileSize << std::flush;
             inputFile.read((char*)data.data() + bytesWritten, fileSize);
             bytesWritten += fileSize;
-        } else {
-            std::cout << "empty file!\n";
         }
+            //file empty, do nothing
     }
 }
 
