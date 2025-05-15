@@ -3,13 +3,11 @@
 #include <exception>
 #include <iostream>
 #include <fstream>
-#include <optional>
 #include <string>
 #include <cmath>
 #include <filesystem>
 #include <vector>
 #include <threadpool.h>
-#include <map>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -22,31 +20,6 @@ struct pixel {
 };
 
 void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten);
-
-void readBytes(std::string inputFile, std::vector<char>& data) {
-    std::ifstream input(inputFile, std::ios::binary);
-    input.seekg(0, std::ios::end);
-    std::ifstream::pos_type size = input.tellg();
-    if (size == 0) {
-        return;
-    }
-    std::vector<char> result(size);
-    input.seekg(0, std::ios::beg);
-    input.read(&result[0], size);
-    
-    data.insert(data.end(), result.begin(), result.end());
-}
-
-class fileGroup {
-    public:
-    std::vector<char> readNext(size_t quantity);
-    size_t getFileSize(std::string filePath);
-    std::vector<char> readFile(std::string filePath, size_t begin, size_t end);
-    void addFile();
-
-    private:
-    std::map<std::string, std::vector<char>> dataMap;
-};
 
 long mapHilbert(long sidePow, long index) {
     long x = 0;
@@ -133,7 +106,6 @@ void encodeToFile(std::string inputDir, long outputFile) {
     }
     close(outputFile);
 }
-
 
 void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten) {
     if (std::filesystem::is_directory(input)) {
