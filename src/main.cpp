@@ -199,7 +199,7 @@ void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten, l
                 //std::cout << "resize" << std::endl;
             }
             //data.resize((fileSize + bytesWritten + sizeof(pixel) - 1)/sizeof(pixel) + 1); // ceil division
-            std::cout << "\33[2K\r# bytes written - dir - size | " << bytesWritten << " - " << input << " - " << fileSize << "\n";
+            std::cout << "\33[2K\r# bytes written - dir - size | " << bytesWritten << " - " << input << " - " << fileSize << std::flush;
             inputFile.read((char*)data.data() + bytesWritten, fileSize);
             bytesWritten += fileSize;
         }
