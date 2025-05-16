@@ -62,7 +62,7 @@ long mapPixelHilbert(long byteIndex, long sidePow) {
     return mappedPixel + channel;
 }
 
-static uintmax_t accumulateSize(const fs::path& p,
+long accumulateSize(const fs::path& p,
                                  std::unordered_set<fs::path>& seen,
                                  std::error_code& ec) {
     // Resolve symlinks; skip on error
@@ -95,7 +95,7 @@ static uintmax_t accumulateSize(const fs::path& p,
 }
 
 /// Returns total size in bytes of `dir` (follows symlinks, skips unreadable items).
-uintmax_t getDirSize(const fs::path& dir) {
+long getDirSize(const fs::path& dir) {
     std::error_code ec;
     std::unordered_set<fs::path> seen;
     return accumulateSize(dir, seen, ec);
@@ -154,7 +154,9 @@ void encodeToFile(std::string inputDir, long outputFile) {
 void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten, long depth) {
     if (depth == 0) {
         std::cout << "preallocating data..." << std::endl;
-        data.resize(getDirSize(input));
+        long dirSize = getDirSize(input);
+        std::cout << "allocating " << dirSize/1024/1024 << " MiB" << std::endl;
+        data.resize((dirSize+sizeof(pixel) - 1)/sizeof(pixel));
     }
 
     depth++;
