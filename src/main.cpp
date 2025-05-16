@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <exception>
@@ -7,6 +8,7 @@
 #include <string>
 #include <cmath>
 #include <filesystem>
+#include <unordered_set>
 #include <vector>
 #include <threadpool.h>
 #include <unistd.h>
@@ -20,7 +22,8 @@ struct pixel {
     char b;
 };
 
-void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten);
+namespace fs = std::filesystem;
+void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten, long depth = 0);
 
 long mapHilbert(long sidePow, long index) {
     long x = 0;
@@ -59,13 +62,53 @@ long mapPixelHilbert(long byteIndex, long sidePow) {
     return mappedPixel + channel;
 }
 
+static uintmax_t accumulateSize(const fs::path& p,
+                                 std::unordered_set<fs::path>& seen,
+                                 std::error_code& ec) {
+    // Resolve symlinks; skip on error
+    fs::path real = fs::canonical(p, ec);
+    if (ec) return 0;
+
+    // Dedupe to avoid loops
+    if (!seen.insert(real).second)
+        return 0;
+
+    // Get status; skip on error
+    fs::file_status st = fs::status(real, ec);
+    if (ec) return 0;
+
+    if (fs::is_regular_file(st)) {
+        // Regular file → add size (skip on error)
+        return fs::file_size(real, ec) ?: 0;
+    }
+    else if (fs::is_directory(st)) {
+        uintmax_t total = 0;
+        for (auto& de : fs::directory_iterator(real, ec)) {
+            if (ec) break;
+            total += accumulateSize(de.path(), seen, ec);
+            if (ec) ec.clear();
+        }
+        return total;
+    }
+    // Other types → skip
+    return 0;
+}
+
+/// Returns total size in bytes of `dir` (follows symlinks, skips unreadable items).
+uintmax_t getDirSize(const fs::path& dir) {
+    std::error_code ec;
+    std::unordered_set<fs::path> seen;
+    return accumulateSize(dir, seen, ec);
+}
+
 void encodeToFile(std::string inputDir, long outputFile) {
     std::vector<pixel> data;
+    
     long bytesWritten = 0;
     loadData(inputDir, data, bytesWritten);
-    
+
     long inputLen = data.size();
-    std::cout << "parsing " << inputLen * 3 << " bytes of data" << std::endl;
+    std::cout << "parsing " << inputLen * 3 /1024/1024<< " MiB of data" << std::endl;
 
     //compute image size
     long pixelCount = (inputLen);
@@ -108,14 +151,20 @@ void encodeToFile(std::string inputDir, long outputFile) {
     close(outputFile);
 }
 
-void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten) {
-    if (std::filesystem::is_directory(input)) {
-        std::vector<std::filesystem::directory_entry> dirs;
-        for(const auto& entry: std::filesystem::directory_iterator(input)) {
+void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten, long depth) {
+    if (depth == 0) {
+        std::cout << "preallocating data..." << std::endl;
+        data.resize(getDirSize(input));
+    }
+
+    depth++;
+    if (fs::is_directory(input)) {
+        std::vector<fs::directory_entry> dirs;
+        for(const auto& entry: fs::directory_iterator(input)) {
             dirs.push_back(entry);
         }
         std::sort(dirs.begin(), dirs.end(),
-    [](const std::filesystem::directory_entry& a, const std::filesystem::directory_entry& b) {
+    [](const fs::directory_entry& a, const fs::directory_entry& b) {
 
             if (a.is_directory() && !b.is_directory()) return true;
             if (!a.is_directory() && b.is_directory()) return false;
@@ -124,37 +173,48 @@ void loadData(std::string input, std::vector<pixel>& data, long& bytesWritten) {
             size_t c = 0;
             size_t d = 0;
 
-            try {c = std::filesystem::file_size(a.path());} catch (std::exception){};
-            try {d = std::filesystem::file_size(b.path());} catch (std::exception){};
+            try {c = fs::file_size(a.path());} catch (std::exception){};
+            try {d = fs::file_size(b.path());} catch (std::exception){};
 
             return c < d;
         });
 
         for (auto i : dirs) {
             try {
-                loadData(i.path(), data, bytesWritten);
+                loadData(i.path(), data, bytesWritten, depth);
             } catch (std::exception){
-                std::cout << "could not read file\n";
+                // std::cout << "could not read file\n";
             }
         }
     } else {
         std::ifstream inputFile(input, std::ios::binary);
-        size_t fileSize = std::filesystem::file_size(input);
+        size_t fileSize = fs::file_size(input);
 
         if (!inputFile) {
-            // file failed to open
+            //std::cout << "file failed to open!" << std::endl;
         } else if (fileSize != 0) {
-            data.resize((fileSize + bytesWritten + sizeof(pixel) - 1)/sizeof(pixel) + 1); // ceil division
-            std::cout << "\33[2K\r# bytes written - dir - size | " << bytesWritten << " - " << input << " - " << fileSize << std::flush;
+            long minPixVecSize = (fileSize + bytesWritten + sizeof(pixel) - 1)/sizeof(pixel);
+            if (data.size() < minPixVecSize) {
+                data.resize((unsigned long)minPixVecSize);
+                //std::cout << "resize" << std::endl;
+            }
+            //data.resize((fileSize + bytesWritten + sizeof(pixel) - 1)/sizeof(pixel) + 1); // ceil division
+            std::cout << "\33[2K\r# bytes written - dir - size | " << bytesWritten << " - " << input << " - " << fileSize << "\n";
             inputFile.read((char*)data.data() + bytesWritten, fileSize);
             bytesWritten += fileSize;
         }
             //file empty, do nothing
     }
+    depth--;
+    if (depth > 0) return;
+    //std::cout << "resizeFinal" << std::endl;
+    std::cout << std::endl;
+    data.resize((bytesWritten + sizeof(pixel) - 1)/sizeof(pixel));
+    //data.push_back({(char)255,(char)255,(char)255});
 }
 
 int main(int argc, char* argv[]) {
-    std::cout << std::filesystem::current_path() << std::endl;
+    std::cout << fs::current_path() << std::endl;
     //temp way to pass files in
     if (argc > 1) {
         printf("input file: %s\n", argv[1]);
